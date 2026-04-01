@@ -87,6 +87,125 @@ body {
   line-height: 1.6;
 }
 
+.chat-shell {
+  isolation: isolate;
+}
+
+.chat-ambient {
+  position: absolute;
+  inset: auto;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(50px);
+  opacity: 0.45;
+  animation: ambientFloat 12s ease-in-out infinite;
+}
+
+.chat-ambient-one {
+  top: 10%;
+  right: 14%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(56, 189, 248, 0) 68%);
+}
+
+.chat-ambient-two {
+  bottom: 12%;
+  left: 18%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.16) 0%, rgba(168, 85, 247, 0) 72%);
+  animation-delay: -4s;
+}
+
+.chat-grid-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, rgba(0,0,0,0.55), transparent 82%);
+}
+
+.chat-quick-action {
+  box-shadow: 0 0 0 rgba(255,255,255,0);
+}
+
+.chat-quick-action:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+}
+
+.chat-user-bubble {
+  animation: riseIn 0.22s ease-out;
+}
+
+.chat-answer-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-answer-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.04) 22%, transparent 46%);
+  transform: translateX(-120%);
+  animation: sweepGlow 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.chat-input-shell {
+  animation: floatUp 0.3s ease-out;
+}
+
+@keyframes ambientFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -14px, 0) scale(1.04); }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sweepGlow {
+  0%, 100% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    transform: translateX(130%);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
+}
+
+@keyframes floatUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 

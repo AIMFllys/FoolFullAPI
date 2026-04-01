@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-/** Get or lazily create a persistent anonymous session ID */
-function getSessionId(): string {
+export function getSessionId(): string {
   let id = localStorage.getItem('sessionId');
   if (!id) {
     id = crypto.randomUUID();
@@ -15,13 +14,11 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach session ID to every request (replaces JWT token)
 api.interceptors.request.use((config) => {
   config.headers['X-Session-ID'] = getSessionId();
   return config;
 });
 
-// Global response interceptor: detect EVENT_ENDED and redirect
 api.interceptors.response.use(
   (response) => response,
   (error) => {

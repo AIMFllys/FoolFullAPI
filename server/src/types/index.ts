@@ -1,5 +1,8 @@
 import { Request } from 'express';
 
+export type ChatMode = 'deep' | 'normal';
+export type ModelType = 'kimi' | 'deepseek';
+
 /** Anonymous session row stored in SQLite */
 export interface SessionRow {
   id: string;
@@ -18,16 +21,55 @@ export interface GlobalStatsRow {
   last_reset_date: string;
 }
 
+export interface SearchSourceItem {
+  id: number;
+  title: string;
+  url: string;
+  content: string;
+  date?: string;
+  source?: string;
+}
+
+export interface DeepSections {
+  source: string[];
+  think: string;
+  plan: string;
+  review: string;
+  answer: string;
+}
+
+export interface DeepChatResponse {
+  rawXml: string;
+  sections: DeepSections;
+  modelUsed: string;
+  sourceItems: SearchSourceItem[];
+}
+
+export interface NormalChatResponse {
+  reply: string;
+  isEasterEgg: boolean;
+  modelUsed: string;
+  step: number;
+}
+
 /** Express request augmented with a resolved session */
 export interface SessionRequest extends Request {
   session?: SessionRow;
 }
 
-export interface ChatResponse {
-  reply: string;
-  step: number;
-  remaining: number;
-  isEasterEgg: boolean;
+export interface ChatRequestBody {
+  message?: unknown;
+  mode?: unknown;
 }
 
-export type ModelType = 'kimi' | 'deepseek';
+export interface ChatResponse {
+  reply: string;
+  step: number | null;
+  remaining: number | null;
+  isEasterEgg: boolean;
+  mode: ChatMode;
+  model?: string | null;
+  rawXml?: string;
+  sections?: DeepSections;
+  sourceItems?: SearchSourceItem[];
+}
