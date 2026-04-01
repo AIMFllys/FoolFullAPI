@@ -9,14 +9,16 @@ import EventEndedPage from './pages/EventEndedPage';
 
 function AppLayout() {
   const location = useLocation();
+  const isLanding = location.pathname === '/';
   const isChat = location.pathname === '/chat';
   const isApiDocs = location.pathname === '/api-docs';
   const hideNav = isChat || isApiDocs;
+  const useFullWidth = isLanding || hideNav;
 
   return (
     <>
       {!hideNav && <Navbar />}
-      <main className={hideNav ? '' : 'main-content'}>
+      <main className={useFullWidth ? '' : 'main-content'}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/chat" element={<ChatPage />} />

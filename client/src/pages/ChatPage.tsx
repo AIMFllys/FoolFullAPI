@@ -417,35 +417,35 @@ export default function ChatPage() {
 
               <AnimatePresence>
                 {modelMenuOpen ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute left-0 right-0 top-[calc(100%+8px)] overflow-hidden rounded-2xl border border-white/12 bg-black/35 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
-                  >
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03))]" />
-                    <div className="relative p-2">
-                      {FRONTEND_MODELS.map((modelName) => (
-                        <button
-                          key={modelName}
-                          type="button"
-                          onClick={() => {
-                            setSelectedFrontendModel(modelName);
-                            setModelMenuOpen(false);
-                          }}
-                          className={cn(
-                            "flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-neutral-100 transition",
-                            selectedFrontendModel === modelName
-                              ? "bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                              : "hover:bg-white/8 hover:text-white",
-                          )}
-                        >
-                          {modelName}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-white/20 bg-black/85 shadow-[0_32px_64px_rgba(0,0,0,0.6)] backdrop-blur-3xl"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-50" />
+                      <div className="relative p-2">
+                        {FRONTEND_MODELS.map((modelName) => (
+                          <button
+                            key={modelName}
+                            type="button"
+                            onClick={() => {
+                              setSelectedFrontendModel(modelName);
+                              setModelMenuOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-neutral-200 transition-all duration-200",
+                              selectedFrontendModel === modelName
+                                ? "bg-white/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+                                : "hover:bg-white/10 hover:text-white",
+                            )}
+                          >
+                            {modelName}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
                 ) : null}
               </AnimatePresence>
             </div>
