@@ -1,18 +1,21 @@
 import { Response, NextFunction } from 'express';
-import db from '../config/database';
-import type { ApiKeyRequest, UserRow } from '../types';
+import { env } from '../config/env';
+import type { SessionRequest } from '../types';
 
-export function apiKeyAuthMiddleware(req: ApiKeyRequest, res: Response, next: NextFunction): void {
-  const apiKey = req.headers.authorization?.replace('Bearer ', '');
-  if (!apiKey) {
-    res.status(401).json({ success: false, error: { code: 'NO_API_KEY', message: 'Missing API Key' } });
+/**
+ * Optional API key guard for /api/v1 (external callers).
+ * If MASTER_API_KEY is empty in env → open access (no key required).
+ * If set → Authorization: Bearer <key> must match.
+ */
+export function apiKeyAuthMiddleware(req: SessionRequest, res: Response, next: NextFunction): void {
+  if (!env.masterApiKey) {
+    next();
     return;
   }
-  const user = db.prepare('SELECT * FROM users WHERE api_key = ?').get(apiKey) as UserRow | undefined;
-  if (!user) {
-    res.status(401).json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API Key' } });
+  const key = req.headers.authorization?.replace('Bearer ', '').trim();
+  if (key !== env.masterApiKey) {
+    res.status(401).json({ error: 'Invalid or missing API Key' });
     return;
   }
-  req.user = user;
   next();
 }

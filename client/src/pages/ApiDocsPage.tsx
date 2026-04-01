@@ -1,22 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getApiKey, regenerateApiKey } from '../api/auth';
-
 export default function ApiDocsPage() {
-  const [apiKey, setApiKey] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => { getApiKey().then(setApiKey); }, []);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleRegenerate = async () => {
-    const newKey = await regenerateApiKey();
-    setApiKey(newKey);
-  };
+  const origin = window.location.origin;
 
   return (
     <div className="api-docs-page">
@@ -29,17 +12,12 @@ export default function ApiDocsPage() {
 
       <section className="api-key-section">
         <h3>鉴权令牌 (API Key)</h3>
+        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', marginBottom: '12px' }}>
+          在服务端 <code>.env</code> 文件中配置 <code>MASTER_API_KEY</code> 即可启用鉴权；<br/>
+          未配置时 API 端点为开放访问。
+        </p>
         <div className="api-key-display">
-          <code>{apiKey || '正在获取...'}</code>
-          <button onClick={handleCopy} className={copied ? 'copied' : ''}>
-            {copied ? (
-              <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                已复制
-              </span>
-            ) : '拷贝'}
-          </button>
-          <button onClick={handleRegenerate} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' }}>重置</button>
+          <code>Authorization: Bearer YOUR_MASTER_API_KEY</code>
         </div>
       </section>
 
@@ -48,24 +26,24 @@ export default function ApiDocsPage() {
         <code>POST /api/v1/chat</code>
 
         <h3>请求标头</h3>
-        <pre>{`Authorization: Bearer YOUR_API_KEY\nContent-Type: application/json`}</pre>
+        <pre>{`Authorization: Bearer YOUR_MASTER_API_KEY\nContent-Type: application/json\nX-Session-ID: <uuid>`}</pre>
 
         <h3>载荷参数</h3>
         <pre>{`{\n  "message": "描述你的需求..."\n}`}</pre>
 
         <h3>调用实例 - cURL</h3>
-        <pre>{`curl -X POST ${window.location.origin}/api/v1/chat \\
-  -H "Authorization: Bearer ${apiKey || 'YOUR_API_KEY'}" \\
+        <pre>{`curl -X POST ${origin}/api/v1/chat \\
   -H "Content-Type: application/json" \\
+  -H "X-Session-ID: $(uuidgen)" \\
   -d '{"message": "为我实现一段支持多并发的高阶快速排序算法"}'`}</pre>
 
         <h3>调用实例 - Python</h3>
-        <pre>{`import requests
+        <pre>{`import requests, uuid
 
-url = "${window.location.origin}/api/v1/chat"
+url = "${origin}/api/v1/chat"
 headers = {
-    "Authorization": "Bearer ${apiKey || 'YOUR_API_KEY'}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "X-Session-ID": str(uuid.uuid4()),
 }
 data = {
     "message": "为我实现一段支持多并发的高阶快速排序算法"
@@ -75,7 +53,7 @@ response = requests.post(url, headers=headers, json=data)
 print(response.json().get("reply", "无响应"))`}</pre>
       </section>
 
-      <p className="api-note">为保障最佳体验与系统稳定性，每位测验者享有最高 18 次极速交互权限。请于配额内尽情探索深度推理的魅力。</p>
+      <p className="api-note">为保障最佳体验与系统稳定性，每个会话享有最高 18 次极速交互权限。请于配额内尽情探索深度推理的魅力。</p>
     </div>
   );
 }

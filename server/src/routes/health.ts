@@ -13,7 +13,6 @@ router.get('/stats', (_req: Request, res: Response) => {
   res.json({
     success: true,
     data: {
-      totalUsers: stats.total_users,
       totalAsks: stats.total_asks,
     },
   });

@@ -1,16 +1,23 @@
 import axios from 'axios';
 
+/** Get or lazily create a persistent anonymous session ID */
+function getSessionId(): string {
+  let id = localStorage.getItem('sessionId');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('sessionId', id);
+  }
+  return id;
+}
+
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
+// Attach session ID to every request (replaces JWT token)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  config.headers['X-Session-ID'] = getSessionId();
   return config;
 });
 

@@ -4,18 +4,16 @@ import helmet from 'helmet';
 import { env } from './config/env';
 import { ipBanMiddleware } from './middleware/ipBan';
 import { eventCheckMiddleware } from './middleware/eventCheck';
-import { globalLimiter, authLimiter, chatLimiter } from './middleware/rateLimiter';
-import authRoutes from './routes/auth';
+import { globalLimiter, chatLimiter } from './middleware/rateLimiter';
 import chatRoutes from './routes/chat';
 import apiV1Routes from './routes/apiV1';
-import userRoutes from './routes/user';
 import healthRoutes from './routes/health';
 
 const app = express();
 
 // Global middleware
 app.use(helmet());
-app.use(cors({ origin: env.frontendUrl, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
+app.use(cors({ origin: env.frontendUrl, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-ID'], credentials: true }));
 app.use(express.json({ limit: '10kb' }));
 app.use(globalLimiter);
 app.use(ipBanMiddleware);
@@ -26,16 +24,10 @@ app.use('/api', healthRoutes);
 // Event check for all other API routes
 app.use('/api', eventCheckMiddleware);
 
-// Auth routes
-app.use('/api/auth', authLimiter, authRoutes);
-
-// User routes
-app.use('/api/user', userRoutes);
-
-// Chat routes
+// Chat routes (anonymous sessions)
 app.use('/api/chat', chatLimiter, chatRoutes);
 
-// API v1 routes (external)
+// API v1 routes (external, optional API key)
 app.use('/api/v1', chatLimiter, apiV1Routes);
 
 // Global error handler

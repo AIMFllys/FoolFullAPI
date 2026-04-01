@@ -1,13 +1,10 @@
 import { Request } from 'express';
 
-export interface UserRow {
-  id: number;
-  username: string;
-  password: string;
-  api_key: string | null;
+/** Anonymous session row stored in SQLite */
+export interface SessionRow {
+  id: string;
   step: number;
   ask_count: number;
-  is_banned: number;
   is_ide_mode: number;
   first_message: string | null;
   created_at: string;
@@ -16,18 +13,14 @@ export interface UserRow {
 
 export interface GlobalStatsRow {
   id: number;
-  total_users: number;
   total_asks: number;
   daily_api_count: number;
   last_reset_date: string;
 }
 
-export interface AuthRequest extends Request {
-  user?: { userId: number; username: string };
-}
-
-export interface ApiKeyRequest extends Request {
-  user?: UserRow;
+/** Express request augmented with a resolved session */
+export interface SessionRequest extends Request {
+  session?: SessionRow;
 }
 
 export interface ChatResponse {

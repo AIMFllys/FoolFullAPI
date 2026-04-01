@@ -11,26 +11,24 @@ cron.schedule('0 0 * * *', () => {
   console.log('[CRON] Daily API count reset');
 });
 
-// Data cleanup on April 2nd
-if (env.dataCleanupEnabled) {
-  cron.schedule('0 0 2 4 *', () => {
-    const now = new Date();
-    if (now.getFullYear() === 2026) {
-      try {
-        const dbPath = path.resolve(env.dbPath);
-        const backupPath = path.resolve(path.dirname(dbPath), `backup_${Date.now()}.db`);
-        if (fs.existsSync(dbPath)) {
-          fs.copyFileSync(dbPath, backupPath);
-        }
-        db.prepare('DELETE FROM chat_logs').run();
-        db.prepare('DELETE FROM users').run();
-        console.log('[CRON] User data cleaned up successfully');
-      } catch (err) {
-        console.error('[CRON] Cleanup failed:', err);
+// Data cleanup on April 2nd (backup + wipe sessions & logs)
+cron.schedule('0 0 2 4 *', () => {
+  const now = new Date();
+  if (now.getFullYear() === 2026) {
+    try {
+      const dbPath = path.resolve(env.dbPath);
+      const backupPath = path.resolve(path.dirname(dbPath), `backup_${Date.now()}.db`);
+      if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, backupPath);
       }
+      db.prepare('DELETE FROM chat_logs').run();
+      db.prepare('DELETE FROM sessions').run();
+      console.log('[CRON] Session data cleaned up successfully');
+    } catch (err) {
+      console.error('[CRON] Cleanup failed:', err);
     }
-  });
-}
+  }
+});
 
 app.listen(env.port, () => {
   console.log(`🚀 Server running on http://localhost:${env.port}`);

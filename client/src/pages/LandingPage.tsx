@@ -22,7 +22,7 @@ export default function LandingPage() {
           无限次免费特定 API 统一调用。在此感受毫秒级响应、超强多步推理与百万级上下文记忆的深度融合。
         </p>
         <div className="hero-actions">
-          <Link to="/auth" className="btn-primary">立即免费体验</Link>
+          <Link to="/chat" className="btn-primary">立即免费体验</Link>
           <a href="#features" className="btn-secondary">了解更多功能</a>
         </div>
       </section>
