@@ -6,7 +6,7 @@ export default function TermsPage() {
 
       <h3>1. 服务性质</h3>
       <p>
-        本网站（“FoolFullAPI”）提供基于真实 API 的演示型对话服务，包含深度模式与普通模式两类交互体验。
+        本网站（“AgentsNav FoolFullAPI”）提供基于真实 API 的演示型对话服务，包含深度模式与普通模式两类交互体验。
         网站内容主要用于功能展示、界面体验与产品演示，不构成生产级模型服务承诺。
       </p>
 

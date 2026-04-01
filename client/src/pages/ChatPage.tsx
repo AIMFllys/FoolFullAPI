@@ -29,8 +29,11 @@ import {
   UploadCloud,
   User,
 } from "lucide-react";
-import { sendMessage, streamMessage, type ChatMode, type SearchSourceItem } from "@/api/chat";
+import { sendMessage, streamMessage, type ChatMode, type ChatResponse, type SearchSourceItem } from "@/api/chat";
 import { ThoughtChain } from "@/components/chat/ThoughtChain";
+import { RevealPanel } from "@/components/chat/RevealPanel";
+import { FakeProgressBar, InterruptBanner, RecoveryBanner, CliffProgress, DeepInterruptBanner } from "@/components/chat/PrankOverlay";
+import { CelebrationOverlay } from "@/components/chat/CelebrationOverlay";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -54,6 +57,9 @@ type Message =
       review: string;
       isStreaming: boolean;
       isEasterEgg?: boolean;
+      isReveal?: boolean;
+      isInterrupted?: boolean;
+      phaseAction?: string;
       step?: number | null;
       error?: string | null;
     };
@@ -118,12 +124,26 @@ export default function ChatPage() {
   );
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const [error, setError] = useState<string | null>(null);
+  const [showBanner, setShowBanner] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const hasMessages = messages.length > 0;
+
+  // Detect Phase 6 reveal and trigger celebration
+  useEffect(() => {
+    const hasReveal = messages.some((m) => m.role === "assistant" && (m.isReveal || m.isEasterEgg));
+    if (hasReveal && !showCelebration) {
+      setShowCelebration(true);
+      // Auto-dismiss after 10 seconds
+      const timer = setTimeout(() => setShowCelebration(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, showCelebration]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -182,6 +202,8 @@ export default function ChatPage() {
               switch (event.event) {
                 case "meta":
                   return { ...message, model: event.data.model };
+                case "phase_info":
+                  return { ...message, step: event.data.phase, phaseAction: event.data.action };
                 case "source":
                   return { ...message, sourceItems: event.data.items };
                 case "think":
@@ -192,17 +214,23 @@ export default function ChatPage() {
                   return { ...message, review: cleanSection(event.data.content, message.review) };
                 case "answer_delta":
                   return { ...message, content: `${message.content}${event.data.delta}` };
+                case "interrupt":
+                  return { ...message, isInterrupted: true };
+                case "reveal":
+                  return { ...message, content: event.data.message, isReveal: true, isEasterEgg: true, isStreaming: false };
                 case "done":
                   return {
                     ...message,
                     model: event.data.model || message.model,
-                    content: chooseFinalAnswer(event.data.sections?.answer, message.content),
+                    content: message.isReveal ? message.content : chooseFinalAnswer(event.data.sections?.answer, message.content),
                     rawXml: event.data.rawXml,
                     sourceItems: event.data.sourceItems || message.sourceItems,
                     think: cleanSection(event.data.sections?.think, message.think),
                     plan: cleanSection(event.data.sections?.plan, message.plan),
                     review: cleanSection(event.data.sections?.review, message.review),
                     isStreaming: false,
+                    isReveal: event.data.isReveal || message.isReveal,
+                    isInterrupted: event.data.interrupted || message.isInterrupted,
                   };
                 case "error":
                   return { ...message, isStreaming: false, error: event.data.message };
@@ -214,16 +242,19 @@ export default function ChatPage() {
         });
       } else {
         const response = await sendMessage({ message: rawMessage, mode });
+        const data = response as ChatResponse & { isReveal?: boolean; phaseAction?: string };
         setMessages((prev) =>
           prev.map((message) =>
             message.id === assistantId && message.role === "assistant"
               ? {
                   ...message,
-                  content: response.reply,
-                  model: response.model || null,
+                  content: data.reply,
+                  model: data.model || null,
                   isStreaming: false,
-                  isEasterEgg: response.isEasterEgg,
-                  step: response.step,
+                  isEasterEgg: data.isEasterEgg,
+                  isReveal: data.isReveal || false,
+                  phaseAction: data.phaseAction,
+                  step: data.step,
                 }
               : message,
           ),
@@ -267,13 +298,23 @@ export default function ChatPage() {
 
   return (
     <div className="chat-shell relative flex h-screen w-full overflow-hidden text-neutral-100">
+      <CelebrationOverlay show={showCelebration} />
       <div className="chat-ambient chat-ambient-one" />
       <div className="chat-ambient chat-ambient-two" />
       <div className="chat-grid-overlay" />
 
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside
         className={cn(
-          "relative z-20 flex h-full shrink-0 flex-col overflow-hidden border-r border-neutral-800 bg-[#0a0a0a] shadow-2xl transition-all duration-300",
+          "flex h-full shrink-0 flex-col overflow-hidden border-r border-neutral-800 bg-[#0a0a0a] shadow-2xl transition-all duration-300",
+          "absolute inset-y-0 left-0 z-50 md:relative md:z-20",
           sidebarOpen ? "w-60" : "w-0",
         )}
       >
@@ -358,10 +399,12 @@ export default function ChatPage() {
               </p>
             </motion.div>
 
-            <Button variant="ghost" className="w-full justify-start gap-3 text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200">
-              <Settings className="h-4 w-4" />
-              API 接入
-            </Button>
+            <Link to="/api-docs" className="w-full">
+              <Button variant="ghost" className="w-full justify-start gap-3 text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200">
+                <Settings className="h-4 w-4" strokeWidth={1.5} />
+                API 接入
+              </Button>
+            </Link>
             <div className="flex cursor-default items-center gap-3 px-4 py-2 text-sm text-neutral-500">
               <User className="h-4 w-4 shrink-0" />
               <span className="truncate">访客</span>
@@ -461,6 +504,38 @@ export default function ChatPage() {
           首页
         </Link>
 
+        {/* ── 顶部公告横幅 ── */}
+        <AnimatePresence>
+          {showBanner && (
+            <motion.div
+              className="absolute left-0 right-0 top-0 z-30 flex items-center justify-center gap-3 overflow-hidden bg-gradient-to-r from-amber-600/90 via-orange-500/90 to-rose-500/90 px-4 py-2.5 shadow-lg backdrop-blur-sm"
+              initial={{ y: -60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -60, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+            >
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.12)_50%,transparent_100%)] animate-[shimmer_3s_ease-in-out_infinite]" />
+              <Sparkles className="h-4 w-4 shrink-0 text-amber-100 drop-shadow-sm" />
+              <p className="text-center text-xs font-medium tracking-wide text-white sm:text-sm">
+                <span className="font-semibold">🎁 神秘惊喜</span>
+                <span className="mx-1.5 text-white/60">|</span>
+                每个模式连续对话 6 次解锁隐藏彩蛋 — 错过今天就要再等一年！
+                <span className="ml-2 text-white/50 text-[11px]">· AgentsNav FoolFullAPI</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowBanner(false)}
+                className="ml-1 shrink-0 rounded-md p-1 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+                aria-label="关闭公告"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {!hasMessages ? (
           <motion.div
             className="flex flex-1 flex-col items-center justify-center -mt-[8vh]"
@@ -475,7 +550,7 @@ export default function ChatPage() {
               transition={{ duration: 0.5, delay: 0.08 }}
             >
               <h1 className="mb-4 text-5xl font-semibold tracking-tight text-white drop-shadow-xl md:text-6xl">
-                1037Solo AI
+                AgentsNav FoolFullAPI
               </h1>
               <p className="text-sm font-medium tracking-wide text-neutral-300/90 md:text-base">
                 延续原有界面风格，深度模式已接入真实联网搜索与分步思考链。
@@ -554,83 +629,117 @@ export default function ChatPage() {
                             </span>
                             {message.step ? (
                               <span className="rounded-full border border-neutral-700/70 bg-neutral-900/70 px-3 py-1">
-                                Step {message.step}
+                                Phase {message.step}/6
                               </span>
                             ) : null}
                           </div>
 
-                          {message.mode === "deep" && hasThoughtChainContent(message) ? (
-                            <motion.div
-                              className="mb-4"
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.24 }}
-                            >
-                              <ThoughtChain
-                                sourceItems={message.sourceItems}
-                                think={message.think}
-                                plan={message.plan}
-                                review={message.review}
-                                isStreaming={message.isStreaming}
-                              />
-                            </motion.div>
-                          ) : null}
-
-                          <motion.div
-                            className="relative mt-1"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.24, delay: 0.04 }}
-                          >
-                            <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
-                              <Sparkles className="h-4 w-4" />
-                              正式回答
-                              {message.isStreaming ? (
-                                <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] tracking-[0.18em] text-neutral-400">
-                                  Streaming
-                                </span>
+                          {/* ── Phase 6 揭晓面板 ── */}
+                          {message.isReveal || message.isEasterEgg ? (
+                            <RevealPanel
+                              message={message.content}
+                              onReset={() => {
+                                setMessages([]);
+                                setInput("");
+                                setError(null);
+                              }}
+                            />
+                          ) : (
+                            <>
+                              {/* ── Deep 模式思考链 ── */}
+                              {message.mode === "deep" && hasThoughtChainContent(message) ? (
+                                <motion.div
+                                  className="mb-4"
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: 0.24 }}
+                                >
+                                  <ThoughtChain
+                                    sourceItems={message.sourceItems}
+                                    think={message.think}
+                                    plan={message.plan}
+                                    review={message.review}
+                                    isStreaming={message.isStreaming}
+                                  />
+                                </motion.div>
                               ) : null}
+
+                              {/* ── 回答区域 ── */}
+                              <motion.div
+                                className="relative mt-1"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.24, delay: 0.04 }}
+                              >
+                                <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+                                  <Sparkles className="h-4 w-4" />
+                                  {message.isInterrupted ? "响应（已中断）" : "正式回答"}
+                                  {message.isStreaming ? (
+                                    <span className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] tracking-[0.18em] text-neutral-400">
+                                      Streaming
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {message.error ? (
+                                  <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-7 text-red-200">
+                                    {message.error}
+                                  </p>
+                                ) : message.content ? (
+                                  <div className="prose prose-invert prose-neutral max-w-none prose-p:leading-relaxed prose-pre:border prose-pre:border-neutral-700/50 prose-pre:bg-neutral-900/80 prose-pre:backdrop-blur-sm">
+                                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 py-2 opacity-70">
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300 [animation-delay:-0.3s]" />
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300 [animation-delay:-0.15s]" />
+                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300" />
+                                  </div>
+                                )}
+
+                                {/* ── Normal 模式 Phase 视觉叠加层 ── */}
+                                {message.mode === "normal" && !message.isStreaming && (
+                                  <>
+                                    {message.step === 2 && <FakeProgressBar />}
+                                    {message.step === 3 && <InterruptBanner />}
+                                    {message.step === 4 && <RecoveryBanner />}
+                                    {message.step === 5 && <CliffProgress />}
+                                  </>
+                                )}
+
+                                {/* ── Deep 模式中断横条 ── */}
+                                {message.mode === "deep" && message.isInterrupted && !message.isStreaming && (
+                                  <DeepInterruptBanner />
+                                )}
+                              </motion.div>
+                            </>
+                          )}
+
+                          {/* ── 底部工具栏 ── */}
+                          {!message.isReveal && !message.isEasterEgg && (
+                            <div className="mt-5 flex items-center gap-4 border-t border-neutral-800/60 pt-3 text-neutral-500 opacity-60 transition-opacity group-hover:opacity-100">
+                              <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="来源">
+                                <Search className="h-3.5 w-3.5" />
+                                来源
+                              </button>
+                              <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="赞同">
+                                <PlusIcon className="h-3.5 w-3.5" />
+                                赞同
+                              </button>
+                              <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="反馈">
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                反馈
+                              </button>
+                              <button
+                                className="flex items-center gap-1.5 text-xs transition-colors hover:text-white"
+                                title="复制"
+                                onClick={() => navigator.clipboard.writeText(message.content)}
+                              >
+                                <Paperclip className="h-3.5 w-3.5" />
+                                复制
+                              </button>
                             </div>
-
-                            {message.error ? (
-                              <p className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-7 text-red-200">
-                                {message.error}
-                              </p>
-                            ) : message.content ? (
-                              <div className="prose prose-invert prose-neutral max-w-none prose-p:leading-relaxed prose-pre:border prose-pre:border-neutral-700/50 prose-pre:bg-neutral-900/80 prose-pre:backdrop-blur-sm">
-                                <ReactMarkdown>{message.content}</ReactMarkdown>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5 py-2 opacity-70">
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300 [animation-delay:-0.3s]" />
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300 [animation-delay:-0.15s]" />
-                                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-300" />
-                              </div>
-                            )}
-                          </motion.div>
-
-                          <div className="mt-5 flex items-center gap-4 border-t border-neutral-800/60 pt-3 text-neutral-500 opacity-60 transition-opacity group-hover:opacity-100">
-                            <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="来源">
-                              <Search className="h-3.5 w-3.5" />
-                              来源
-                            </button>
-                            <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="赞同">
-                              <PlusIcon className="h-3.5 w-3.5" />
-                              赞同
-                            </button>
-                            <button className="flex items-center gap-1.5 text-xs transition-colors hover:text-white" title="反馈">
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              反馈
-                            </button>
-                            <button
-                              className="flex items-center gap-1.5 text-xs transition-colors hover:text-white"
-                              title="复制"
-                              onClick={() => navigator.clipboard.writeText(message.content)}
-                            >
-                              <Paperclip className="h-3.5 w-3.5" />
-                              复制
-                            </button>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

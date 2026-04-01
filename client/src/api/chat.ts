@@ -38,11 +38,14 @@ export interface ChatResponse {
 
 export type ChatStreamEvent =
   | { event: 'meta'; data: { mode: 'deep'; model: string; searchEnabled: true } }
+  | { event: 'phase_info'; data: { phase: number; action: string } }
   | { event: 'source'; data: { labels: string[]; items: SearchSourceItem[] } }
   | { event: 'think'; data: { content: string } }
   | { event: 'plan'; data: { content: string } }
   | { event: 'review'; data: { content: string } }
   | { event: 'answer_delta'; data: { delta: string } }
+  | { event: 'interrupt'; data: { phase: number } }
+  | { event: 'reveal'; data: { message: string } }
   | {
       event: 'done';
       data: {
@@ -51,6 +54,8 @@ export type ChatStreamEvent =
         rawXml?: string;
         sections?: DeepSections;
         sourceItems?: SearchSourceItem[];
+        isReveal?: boolean;
+        interrupted?: boolean;
       };
     }
   | { event: 'error'; data: { code: string; message: string } };

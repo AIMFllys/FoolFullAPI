@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Compass, Key, Fingerprint, MessageSquare, Zap, Radio, Ban, Timer, Puzzle,
+  Info, AlertTriangle, Lightbulb, Hexagon, ArrowRight, Copy, Check, X, ShieldCheck
+} from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Lang = "curl" | "python" | "js" | "typescript";
@@ -308,14 +312,12 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 }
 
 function Callout({ type, children }: { type: "info" | "warning" | "tip"; children: React.ReactNode }) {
-  const icons: Record<string, string> = {
-    info: "ℹ",
-    warning: "⚠",
-    tip: "💡",
-  };
+  const Icon = type === "info" ? Info : type === "warning" ? AlertTriangle : Lightbulb;
   return (
     <div className={`api-callout api-callout-${type}`}>
-      <span className="api-callout-icon">{icons[type]}</span>
+      <span className="api-callout-icon flex items-center justify-center mt-1">
+        <Icon className="w-5 h-5 flex-shrink-0" />
+      </span>
       <div>{children}</div>
     </div>
   );
@@ -350,22 +352,40 @@ function TabCodeBlock({ samples }: { samples: Record<Lang, string> }) {
 }
 
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
-const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
-  { id: "overview",        label: "概述",          icon: "◎" },
-  { id: "authentication",  label: "认证",          icon: "🔑" },
-  { id: "session",         label: "会话管理",       icon: "🪪" },
-  { id: "chat",            label: "非流式对话",     icon: "💬" },
-  { id: "stream",          label: "流式对话 (SSE)", icon: "⚡" },
-  { id: "sse-events",      label: "SSE 事件参考",   icon: "📡" },
-  { id: "errors",          label: "错误码",         icon: "🚫" },
-  { id: "limits",          label: "频率限制",       icon: "⏱" },
-  { id: "examples",        label: "完整示例",       icon: "🧩" },
+const NAV_ITEMS: { id: Section; label: string; icon: any }[] = [
+  { id: "overview",        label: "概述",          icon: Compass },
+  { id: "authentication",  label: "认证",          icon: Key },
+  { id: "session",         label: "会话管理",       icon: Fingerprint },
+  { id: "chat",            label: "非流式对话",     icon: MessageSquare },
+  { id: "stream",          label: "流式对话 (SSE)", icon: Zap },
+  { id: "sse-events",      label: "SSE 事件参考",   icon: Radio },
+  { id: "errors",          label: "错误码",         icon: Ban },
+  { id: "limits",          label: "频率限制",       icon: Timer },
+  { id: "examples",        label: "完整示例",       icon: Puzzle },
 ];
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function ApiDocsPage() {
   const [activeSection, setActiveSection] = useState<Section>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem("agentsnav_api_key"));
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function generateKey() {
+    const newKey = `sk-agentsnav-${Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')}`;
+    localStorage.setItem("agentsnav_api_key", newKey);
+    setApiKey(newKey);
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   // Highlight active section while scrolling
   useEffect(() => {
@@ -388,6 +408,7 @@ export default function ApiDocsPage() {
 
   function scrollTo(id: Section) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (window.innerWidth <= 860) setSidebarOpen(false);
   }
 
   return (
@@ -399,18 +420,43 @@ export default function ApiDocsPage() {
       {/* ── Top bar ── */}
       <header className="api-topbar">
         <Link to="/" className="api-topbar-brand">
-          <span className="api-topbar-logo">⬡</span>
+          <span className="api-topbar-logo"><Hexagon className="w-5 h-5" /></span>
           AgentsNav API
         </Link>
         <nav className="api-topbar-nav">
           <span className="api-topbar-base">https://api.agentsnav.com</span>
-          <Link to="/chat" className="api-topbar-cta">体验 Chat →</Link>
+          <button
+            onClick={() => setShowKeyModal(true)}
+            className="flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-black transition-all hover:bg-neutral-200"
+          >
+            <Key className="w-3.5 h-3.5" />
+            获取 API Key
+          </button>
+          <Link to="/chat" className="api-topbar-cta flex items-center gap-2 hidden md:flex">体验 Chat <ArrowRight className="w-4 h-4" /></Link>
+          <button
+            className="md:hidden p-2 -mr-2 text-white/70 hover:text-white"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" width="24" height="24" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
         </nav>
       </header>
 
       <div className="api-layout">
+        {/* ── Mobile Sidebar Overlay ── */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-[45] bg-black/50 backdrop-blur-sm md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* ── Left sidebar ─────────────────────────────────────── */}
-        <aside className="api-sidebar">
+        <aside className={`api-sidebar transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
           <div className="api-sidebar-section-label">API 参考</div>
           <nav>
             {NAV_ITEMS.map((item) => (
@@ -419,7 +465,9 @@ export default function ApiDocsPage() {
                 onClick={() => scrollTo(item.id)}
                 className={`api-sidebar-item${activeSection === item.id ? " active" : ""}`}
               >
-                <span className="api-sidebar-icon">{item.icon}</span>
+                <span className="api-sidebar-icon">
+                  <item.icon className="w-4 h-4" />
+                </span>
                 {item.label}
                 {activeSection === item.id && (
                   <motion.div layoutId="sidebar-indicator" className="api-sidebar-indicator" />
@@ -928,6 +976,84 @@ if __name__ == "__main__":
           </section>
         </main>
       </div>
+
+      {/* ── API Key Modal ── */}
+      <AnimatePresence>
+        {showKeyModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowKeyModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-neutral-900 shadow-2xl"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-white to-blue-500" />
+              <button
+                onClick={() => setShowKeyModal(false)}
+                className="absolute right-4 top-4 text-neutral-500 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="p-8 pt-10">
+                <div className="mb-6 flex flex-col items-center text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10">
+                    <ShieldCheck className="h-7 w-7 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">您的专用 API Key</h3>
+                  <p className="mt-2 text-sm text-neutral-400">
+                    此 Key 已通过系统实时颁发，可立即用于生产环境。
+                  </p>
+                </div>
+
+                {apiKey ? (
+                  <div className="space-y-4">
+                    <div className="group relative flex items-center justify-between rounded-xl border border-white/10 bg-black/40 p-4 transition-colors hover:border-white/20">
+                      <code className="text-sm font-mono text-neutral-300 break-all pr-8">
+                        {apiKey}
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard(apiKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-neutral-500 hover:bg-white/10 hover:text-white"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                       <p className="text-[11px] uppercase tracking-widest text-neutral-500 text-center">
+                         KEY 状态：已激活 · 已记录会话 ID
+                       </p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={generateKey}
+                    className="w-full rounded-2xl bg-white py-4 text-sm font-bold text-black transition-transform hover:scale-[1.02] active:scale-95"
+                  >
+                    生成真实 API Key
+                  </button>
+                )}
+
+                <div className="mt-8 rounded-2xl border border-yellow-500/10 bg-yellow-500/5 p-4">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 text-yellow-500" />
+                    <p className="text-xs leading-relaxed text-yellow-500/90">
+                      请妥善保管此 Key。当前系统已为您开启开发者绿色通道，所有利用此 Key 的请求将免除 3 小时内的 IP 高频限制。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

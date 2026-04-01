@@ -55,8 +55,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
   }
 }
+
+/* Reduce font sizes on mobile proportionally */
+@media (max-width: 768px) {
+  html {
+    font-size: 85%;
+  }
+}
+
 /* ===== CSS Variables ===== */
 :root {
   --bg-primary: #0a0a1a;
@@ -782,7 +791,7 @@ a:hover { text-decoration: underline; }
 /* Responsive – API docs */
 @media (max-width: 860px) {
   .api-layout { grid-template-columns: 1fr; }
-  .api-sidebar { display: none; }
+  .api-sidebar { position: fixed; transform: translateX(-100%); width: 260px; z-index: 50; height: calc(100vh - 56px); }
   .api-main { padding: 2rem 1.25rem 4rem; }
   .api-info-grid { grid-template-columns: 1fr; }
   .api-topbar-base { display: none; }
