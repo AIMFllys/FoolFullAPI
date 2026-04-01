@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowUpIcon,
   Bot,
+  ChevronDown,
   CircleUserRound,
   Code2,
   Compass,
@@ -57,6 +58,16 @@ type Message =
       error?: string | null;
     };
 
+const FRONTEND_MODELS = [
+  "OpenAI GPT-5.4",
+  "Anthropic Claude Opus 4.6",
+  "Google Gemini 2.5 Pro",
+  "xAI Grok 4",
+  "DeepSeek-R1-0528",
+  "Qwen 3.5 Plus",
+  "Kimi K2.5",
+] as const;
+
 const QUICK_PROMPTS: Array<{ label: string; icon: ReactNode; prompt: string }> = [
   { label: "生成代码", icon: <Code2 className="h-4 w-4" />, prompt: "帮我生成一个现代化登录页的 React 代码" },
   { label: "发布应用", icon: <Rocket className="h-4 w-4" />, prompt: "演示如何部署一个 React + Express 应用" },
@@ -102,16 +113,37 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>("deep");
+  const [selectedFrontendModel, setSelectedFrontendModel] = useState<(typeof FRONTEND_MODELS)[number]>(
+    "OpenAI GPT-5.4",
+  );
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const hasMessages = messages.length > 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!modelMenuRef.current?.contains(event.target as Node)) {
+        setModelMenuOpen(false);
+      }
+    }
+
+    if (modelMenuOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [modelMenuOpen]);
 
   async function handleSend(preset?: string): Promise<void> {
     const rawMessage = (preset || input).trim();
@@ -321,8 +353,8 @@ export default function ChatPage() {
               </div>
               <p className="mt-3 text-xs leading-6 text-neutral-500">
                 {mode === "deep"
-                  ? "真实联网搜索 + 思考链 + 流式回答"
-                  : "保留愚人节 6 步普通模式"}
+                  ? "真实联网搜索与分步思考链"
+                  : "经典流程对话视图"}
               </p>
             </motion.div>
 
@@ -361,6 +393,65 @@ export default function ChatPage() {
           </Button>
         ) : null}
 
+        <div className="absolute left-1/2 top-4 z-20 -translate-x-1/2">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-2 text-xs text-neutral-300 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
+            <Sparkles className="h-3.5 w-3.5 text-violet-300" />
+            <span className="hidden tracking-[0.18em] text-neutral-500 md:inline">FRONTEND MODEL</span>
+            <div ref={modelMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setModelMenuOpen((value) => !value)}
+                className={cn(
+                  "flex min-w-[280px] items-center justify-between rounded-xl border border-white/12 bg-white/10 py-2 pl-3 pr-3 text-xs text-neutral-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] outline-none backdrop-blur-xl transition hover:border-white/20 hover:bg-white/12",
+                  modelMenuOpen ? "border-violet-400/70 bg-white/12" : "",
+                )}
+              >
+                <span>{selectedFrontendModel}</span>
+                <ChevronDown
+                  className={cn(
+                    "ml-3 h-3.5 w-3.5 text-neutral-500 transition-transform duration-200",
+                    modelMenuOpen ? "rotate-180" : "",
+                  )}
+                />
+              </button>
+
+              <AnimatePresence>
+                {modelMenuOpen ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute left-0 right-0 top-[calc(100%+8px)] overflow-hidden rounded-2xl border border-white/12 bg-black/35 shadow-[0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+                  >
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.03))]" />
+                    <div className="relative p-2">
+                      {FRONTEND_MODELS.map((modelName) => (
+                        <button
+                          key={modelName}
+                          type="button"
+                          onClick={() => {
+                            setSelectedFrontendModel(modelName);
+                            setModelMenuOpen(false);
+                          }}
+                          className={cn(
+                            "flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm text-neutral-100 transition",
+                            selectedFrontendModel === modelName
+                              ? "bg-white/14 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                              : "hover:bg-white/8 hover:text-white",
+                          )}
+                        >
+                          {modelName}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
         <Link
           to="/"
           className="absolute right-4 top-4 z-20 flex items-center gap-1.5 rounded-lg border border-neutral-800/50 bg-black/40 px-3 py-1.5 text-xs text-neutral-400 shadow-sm backdrop-blur-md transition-all hover:bg-black/60 hover:text-white"
@@ -391,7 +482,7 @@ export default function ChatPage() {
               </p>
             </motion.div>
             <motion.div
-              className="mb-4 mt-14 w-full max-w-3xl px-4"
+              className="mb-4 mt-14 w-full max-w-4xl px-4"
               initial={{ opacity: 0, y: 22 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.16 }}
@@ -418,7 +509,7 @@ export default function ChatPage() {
           </motion.div>
         ) : (
           <div className="custom-scrollbar flex flex-1 flex-col items-center overflow-y-auto scroll-smooth px-4 pb-36 pt-24 md:px-10">
-            <div className="flex w-full max-w-3xl flex-col gap-6">
+            <div className="flex w-full max-w-4xl flex-col gap-8">
               <AnimatePresence initial={false}>
                 {messages.map((message, index) =>
                   message.role === "user" ? (
@@ -430,7 +521,7 @@ export default function ChatPage() {
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.22, delay: index * 0.02 }}
                     >
-                      <div className="chat-user-bubble max-w-[85%] rounded-[22px] rounded-br-sm border border-neutral-700/80 bg-neutral-800/90 px-5 py-3.5 text-[15px] leading-relaxed text-neutral-100 shadow-sm backdrop-blur-md">
+                      <div className="chat-user-bubble max-w-[80%] rounded-[24px] rounded-br-sm bg-neutral-800/80 px-5 py-3.5 text-[15px] leading-relaxed text-neutral-50 shadow-sm backdrop-blur-md">
                         {message.content}
                       </div>
                     </motion.div>
@@ -443,9 +534,10 @@ export default function ChatPage() {
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.28, delay: index * 0.02 }}
                     >
-                      <div className="group flex w-full gap-4 rounded-[22px] rounded-tl-sm border border-neutral-700/60 bg-black/50 p-5 shadow-xl backdrop-blur-xl transition-colors hover:border-neutral-600/60 hover:bg-black/60 md:p-6">
+                      <div className="group relative z-10 flex w-full gap-5 py-4 md:py-6">
+                        <div className="pointer-events-none absolute -inset-x-4 -inset-y-0 rounded-3xl bg-black/10 opacity-80 backdrop-blur-xl" />
                         <motion.div
-                          className="mt-1 shrink-0 text-blue-400 drop-shadow-md"
+                          className="relative mt-0.5 shrink-0 text-blue-400 drop-shadow-md"
                           animate={message.isStreaming ? { rotate: [0, 4, -4, 0] } : { rotate: 0 }}
                           transition={{
                             duration: 1.8,
@@ -458,13 +550,8 @@ export default function ChatPage() {
                         <div className="flex min-w-0 flex-1 flex-col overflow-hidden text-[15px] leading-relaxed text-neutral-200">
                           <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-neutral-500">
                             <span className="rounded-full border border-neutral-700/70 bg-neutral-900/70 px-3 py-1">
-                              {message.mode === "deep" ? "Deep Mode" : "Normal Mode"}
+                              {message.mode === "deep" ? "Deep Mode" : "Standard Mode"}
                             </span>
-                            {message.model ? (
-                              <span className="rounded-full border border-neutral-700/70 bg-neutral-900/70 px-3 py-1 normal-case tracking-normal text-neutral-400">
-                                {message.model}
-                              </span>
-                            ) : null}
                             {message.step ? (
                               <span className="rounded-full border border-neutral-700/70 bg-neutral-900/70 px-3 py-1">
                                 Step {message.step}
@@ -490,7 +577,7 @@ export default function ChatPage() {
                           ) : null}
 
                           <motion.div
-                            className="chat-answer-card rounded-[22px] border border-neutral-800/70 bg-neutral-950/40 px-4 py-4"
+                            className="relative mt-1"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.24, delay: 0.04 }}
@@ -564,7 +651,7 @@ export default function ChatPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <div className="chat-input-shell relative mx-auto w-full max-w-3xl rounded-2xl border border-neutral-700/80 bg-black/60 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl">
+          <div className="chat-input-shell relative mx-auto w-full max-w-4xl rounded-3xl border border-neutral-700/50 bg-black/50 shadow-2xl ring-1 ring-white/5 backdrop-blur-2xl">
             <div className="flex flex-wrap gap-1 px-3 pb-1 pt-2.5">
               <ModeChip
                 active={mode === "deep"}
@@ -589,10 +676,10 @@ export default function ChatPage() {
               placeholder={
                 mode === "deep"
                   ? "输入你需要联网搜索和深度分析的请求...（Enter 发送）"
-                  : "输入你要体验普通模式的请求...（Enter 发送）"
+                  : "输入你的请求...（Enter 发送）"
               }
               disabled={isLoading}
-              className="custom-scrollbar min-h-[56px] max-h-[250px] w-full resize-none border-none bg-transparent px-5 py-4 text-[15px] leading-relaxed text-white placeholder:text-neutral-500/80 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="textarea-scroll-hidden min-h-[56px] max-h-[250px] w-full resize-none border-none bg-transparent px-5 py-4 text-[15px] leading-relaxed text-white placeholder:text-neutral-500/80 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
 
             <div className="flex items-center justify-between p-2 pb-3 pl-3">
@@ -602,7 +689,7 @@ export default function ChatPage() {
                 </Button>
                 <div className="mx-1 h-4 w-px bg-neutral-700/60" />
                 <span className="rounded-lg border border-neutral-700/30 bg-neutral-800/40 px-3 py-1.5 text-xs font-medium text-neutral-400">
-                  {mode === "deep" ? "深度模式：联网搜索 + 思考链" : "普通模式：愚人节 6 步"}
+                  {mode === "deep" ? "深度模式：联网搜索 + 思考链" : "普通模式：标准对话流程"}
                 </span>
               </div>
 

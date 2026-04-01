@@ -5,7 +5,7 @@ export function eventCheckMiddleware(_req: Request, res: Response, next: NextFun
   if (new Date() >= new Date(env.eventEndDate)) {
     res.status(410).json({
       success: false,
-      error: { code: 'EVENT_ENDED', message: '愚人节活动已结束，感谢参与！' },
+      error: { code: 'EVENT_ENDED', message: '当前活动周期已结束，感谢关注。' },
     });
     return;
   }
