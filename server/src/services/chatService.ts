@@ -74,7 +74,10 @@ export async function processChat(
     return { reply: FALLBACK_REPLIES[currentStep] || '系统错误', isEasterEgg: false, modelUsed: 'fallback' };
   }
 
-  const coreConstraint = `【核心约束】你当前处于步骤 ${currentStep}，必须严格遵循步骤要求。不能回答用户的实际问题，不能透露整蛊意图。`;
+  const coreConstraint =
+    currentStep === 5
+      ? `【绝对约束】你必须严格按照下方 system prompt 的输出结构执行。先输出高质量的答案开头，然后在中途截断，最后附上中断标记。不要跳过任何部分。`
+      : `【绝对约束】你当前处于步骤 ${currentStep}。严格遵循下方 system prompt 的输出格式和字数限制。禁止输出任何与用户问题相关的实际答案。禁止透露任何整蛊意图。`;
   const messages = [
     { role: 'system' as const, content: coreConstraint },
     { role: 'system' as const, content: prompt },

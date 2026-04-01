@@ -11,16 +11,17 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="navbar">
-      <Link to="/" className="navbar-brand">Claude Opos4 母4.6</Link>
+    <nav className="navbar" role="navigation" aria-label="主导航">
+      <Link to="/" className="navbar-brand">FoolFullAPI</Link>
       <div className="navbar-links">
         {user ? (
           <>
             <Link to="/select">控制台</Link>
+            <Link to="/api-docs">API</Link>
             <button onClick={handleLogout} className="btn-text">退出</button>
           </>
         ) : (
-          <Link to="/auth" className="btn-primary-sm">登录</Link>
+          <Link to="/auth" className="btn-primary">开始使用</Link>
         )}
       </div>
     </nav>
